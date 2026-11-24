@@ -38,7 +38,9 @@ helm template argocd argo/argo-cd --version "$ARGOCD_CHART" -n argocd \
 ok "argocd (chart $ARGOCD_CHART)"
 
 info "Collecting Argo CD resources (projects, apps, appsets, root)"
-cat bootstrap/root-app.yaml argocd/projects/*.yaml argocd/apps/*.yaml > "$OUT/argocd-resources.yaml"
+for f in bootstrap/root-app.yaml argocd/projects/*.yaml argocd/apps/*.yaml; do
+  printf -- '---\n'; cat "$f"   # explicit document separator between files
+done > "$OUT/argocd-resources.yaml"
 ok "argocd-resources"
 
 if ! command -v kubeconform >/dev/null; then
