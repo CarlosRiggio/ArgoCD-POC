@@ -1,0 +1,8 @@
+# argocd CLI downloaded by `make cli`
+bin/
+
+# Local editor / tooling artifacts
+.vscode/
+.idea/
+ruvector.db
+.claude/settings.local.json

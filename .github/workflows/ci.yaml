@@ -1,0 +1,80 @@
+# CI for the GitOps repo.
+#
+#  lint : on every push / PR. Renders every app (kustomize + helm) and validates
+#         the result against Kubernetes + Argo CD CRD schemas. A broken manifest
+#         never reaches main, so Argo CD never tries to sync it.
+#
+#  e2e  : on push to main (and manual runs). Spins up the SAME kind cluster as
+#         `make up`, bootstraps Argo CD and checks every app becomes Synced and
+#         Healthy, then runs the scripted demos as tests.
+#         Note: Argo CD always pulls from `main` on GitHub, so e2e tests what is
+#         on main, which is why it does not run on pull requests.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.21.3
+
+      - name: Install kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.7.0/kubeconform-linux-amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin kubeconform
+          kubeconform -v
+
+      - name: Render and validate all manifests
+        run: make lint
+
+  e2e:
+    needs: lint
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.21.3
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          config: cluster/kind-config.yaml
+          cluster_name: argocd-poc
+
+      - name: Install Argo CD and bootstrap the root app
+        run: make argocd bootstrap
+
+      - name: Wait for all apps to be Synced and Healthy
+        run: make wait
+
+      - name: Promote to prod (manual sync)
+        run: make sync-prod
+
+      - name: Demo - self-heal
+        run: make demo-self-heal
+
+      - name: Demo - RBAC
+        run: make demo-rbac
+
+      - name: Dump state on failure
+        if: failure()
+        run: |
+          kubectl -n argocd get applications -o wide || true
+          kubectl -n argocd get applications -o yaml | grep -A20 'conditions:' || true
+          kubectl get pods -A || true

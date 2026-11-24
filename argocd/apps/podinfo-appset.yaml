@@ -1,0 +1,59 @@
+# ApplicationSet: an upstream Helm chart deployed to several environments.
+#
+# Generator: LIST generator (environments enumerated explicitly).
+#
+# Each generated Application is MULTI-SOURCE:
+#   source 1: the third-party podinfo Helm chart, pinned to a version,
+#   source 2: this Git repo, referenced as `$values`, providing our values files.
+# This is the standard way to deploy a vendor chart without forking it.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: podinfo
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          - env: dev
+            autoSync: true
+          - env: prod
+            autoSync: false
+  template:
+    metadata:
+      name: "podinfo-{{ .env }}"
+      labels:
+        app.kubernetes.io/part-of: podinfo
+        env: "{{ .env }}"
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: apps
+      sources:
+        - repoURL: https://stefanprodan.github.io/podinfo
+          chart: podinfo
+          targetRevision: 6.17.0
+          helm:
+            releaseName: podinfo
+            valueFiles:
+              - $values/apps/podinfo/values-common.yaml
+              - $values/apps/podinfo/values-{{ .env }}.yaml
+        - repoURL: https://github.com/CarlosRiggio/ArgoCD-POC.git
+          targetRevision: main
+          ref: values
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "podinfo-{{ .env }}"
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+  templatePatch: |
+    {{- if .autoSync }}
+    spec:
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+    {{- end }}

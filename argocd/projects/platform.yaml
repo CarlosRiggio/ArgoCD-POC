@@ -1,0 +1,25 @@
+# AppProject for platform components (here: Argo CD itself).
+#
+# Platform components legitimately need cluster-scoped resources
+# (CRDs, ClusterRoles...), so this project allows them, but ONLY from the
+# two trusted sources below and ONLY into the argocd namespace.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"  # projects must exist before the apps that use them
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Platform components managed by the platform team (Argo CD itself).
+  sourceRepos:
+    - https://argoproj.github.io/argo-helm            # official Argo CD Helm chart
+    - https://github.com/CarlosRiggio/ArgoCD-POC.git  # our values file
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"

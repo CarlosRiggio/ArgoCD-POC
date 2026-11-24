@@ -1,0 +1,26 @@
+# hello - PROD overlay. Open http://localhost:8083
+# Only what differs from the base lives here: replicas, UI color/message, nodePort.
+# The target namespace (hello-prod) is set by the ApplicationSet, not here.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+replicas:
+  - name: hello
+    count: 3
+
+configMapGenerator:
+  - name: hello-config
+    behavior: merge
+    literals:
+      - PODINFO_UI_COLOR=#38a169  # green
+      - PODINFO_UI_MESSAGE=hello prod - v1
+
+patches:
+  - target: { kind: Service, name: hello }
+    patch: |
+      - op: add
+        path: /spec/ports/0/nodePort
+        value: 30083

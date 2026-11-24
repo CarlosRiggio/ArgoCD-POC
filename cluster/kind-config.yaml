@@ -1,0 +1,25 @@
+# kind cluster used by the POC.
+#
+# - 1 control-plane + 1 worker: small enough for a laptop, but still multi-node.
+# - extraPortMappings expose NodePort services on localhost so no ingress
+#   controller or `kubectl port-forward` is needed:
+#
+#     localhost:8080 -> Argo CD UI/API      (NodePort 30080)
+#     localhost:8081 -> hello (dev)         (NodePort 30081)
+#     localhost:8082 -> hello (staging)     (NodePort 30082)
+#     localhost:8083 -> hello (prod)        (NodePort 30083)
+#     localhost:8091 -> podinfo (dev)       (NodePort 30091)
+#     localhost:8092 -> podinfo (prod)      (NodePort 30092)
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: argocd-poc
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - { containerPort: 30080, hostPort: 8080, listenAddress: "127.0.0.1", protocol: TCP }
+      - { containerPort: 30081, hostPort: 8081, listenAddress: "127.0.0.1", protocol: TCP }
+      - { containerPort: 30082, hostPort: 8082, listenAddress: "127.0.0.1", protocol: TCP }
+      - { containerPort: 30083, hostPort: 8083, listenAddress: "127.0.0.1", protocol: TCP }
+      - { containerPort: 30091, hostPort: 8091, listenAddress: "127.0.0.1", protocol: TCP }
+      - { containerPort: 30092, hostPort: 8092, listenAddress: "127.0.0.1", protocol: TCP }
+  - role: worker

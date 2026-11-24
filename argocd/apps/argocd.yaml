@@ -1,0 +1,41 @@
+# Argo CD manages ITSELF.
+#
+# After the first `helm install`, this Application takes ownership of the same
+# Helm release. Upgrading Argo CD = bump `targetRevision` below and push.
+#
+# It is a MULTI-SOURCE application:
+#   source 1: the upstream Helm chart (pinned version),
+#   source 2: this Git repo, referenced as `$values`, which provides the values file.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  # NOTE: intentionally NO resources-finalizer here. Deleting this Application
+  # must never uninstall Argo CD out from under itself.
+spec:
+  project: platform
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-cd
+      targetRevision: 10.19.0  # Argo CD v3.6.2
+      helm:
+        releaseName: argocd    # must match the bootstrap `helm install argocd ...`
+        valueFiles:
+          - $values/bootstrap/argocd-values.yaml
+    - repoURL: https://github.com/CarlosRiggio/ArgoCD-POC.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: false     # be conservative with the tool that runs everything else
+      selfHeal: true
+    syncOptions:
+      # Argo CD's CRDs are too large for client-side apply's
+      # last-applied-configuration annotation, so use server-side apply.
+      - ServerSideApply=true

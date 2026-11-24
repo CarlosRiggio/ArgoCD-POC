@@ -1,0 +1,25 @@
+# PostSync HOOK: runs AFTER all resources are synced AND Healthy.
+# A failed smoke test marks the sync operation as Failed (visible in the UI).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: hello-smoke-test
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: smoke-test
+          image: busybox:1.37.0
+          command: ["sh", "-c"]
+          args:
+            - |
+              echo "Smoke testing http://hello:9898/readyz ..."
+              wget -qO- -T 5 http://hello:9898/readyz && echo && echo "OK"
+          resources:
+            requests: { cpu: 10m, memory: 8Mi }
+            limits: { memory: 16Mi }

@@ -1,0 +1,7 @@
+# podinfo - prod (MANUAL sync). Open http://localhost:8092
+replicaCount: 2
+ui:
+  color: "#2f855a"   # green
+  message: "podinfo PROD - synced manually after review"
+service:
+  nodePort: 30092

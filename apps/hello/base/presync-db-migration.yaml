@@ -1,0 +1,29 @@
+# PreSync HOOK: runs BEFORE any other resource is applied in a sync.
+# Typical real-world use: database schema migrations. If this Job fails,
+# the sync stops and the new version is never rolled out.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: hello-db-migration
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    # Delete the previous run right before creating a new one, so the last
+    # run's logs stay visible in the UI.
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: busybox:1.37.0
+          command: ["sh", "-c"]
+          args:
+            - |
+              echo "Running (simulated) database migrations..."
+              sleep 3
+              echo "Migrations applied."
+          resources:
+            requests: { cpu: 10m, memory: 8Mi }
+            limits: { memory: 16Mi }

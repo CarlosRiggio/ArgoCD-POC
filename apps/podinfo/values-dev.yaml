@@ -1,0 +1,7 @@
+# podinfo - dev (auto-synced). Open http://localhost:8091
+replicaCount: 1
+ui:
+  color: "#2b6cb0"   # blue
+  message: "podinfo DEV - Helm chart + values from Git (multi-source)"
+service:
+  nodePort: 30091

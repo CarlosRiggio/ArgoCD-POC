@@ -1,0 +1,61 @@
+# ApplicationSet: one Application per environment folder, generated automatically.
+#
+# Generator: Git DIRECTORY generator. Every folder matching
+# apps/hello/overlays/* becomes an Application:
+#
+#   apps/hello/overlays/dev      -> Application hello-dev      -> namespace hello-dev
+#   apps/hello/overlays/staging  -> Application hello-staging  -> namespace hello-staging
+#   apps/hello/overlays/prod     -> Application hello-prod     -> namespace hello-prod
+#
+# Add a folder (e.g. overlays/qa) and push: a new environment appears.
+# Delete a folder and push: the environment is removed.
+#
+# Promotion policy (via templatePatch):
+#   dev, staging -> auto-sync + self-heal + prune
+#   prod         -> manual sync (a human clicks SYNC / runs `make sync-prod`)
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: hello
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/CarlosRiggio/ArgoCD-POC.git
+        revision: main
+        directories:
+          - path: apps/hello/overlays/*
+  template:
+    metadata:
+      name: "hello-{{ .path.basename }}"
+      labels:
+        app.kubernetes.io/part-of: hello
+        env: "{{ .path.basename }}"
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: apps
+      source:
+        repoURL: https://github.com/CarlosRiggio/ArgoCD-POC.git
+        targetRevision: main
+        path: "{{ .path.path }}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "hello-{{ .path.basename }}"
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+        retry:
+          limit: 3
+          backoff: { duration: 5s, factor: 2, maxDuration: 1m }
+  # Go-templated patch applied on top of `template`: everything except prod auto-syncs.
+  templatePatch: |
+    {{- if ne .path.basename "prod" }}
+    spec:
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+    {{- end }}

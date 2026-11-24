@@ -1,0 +1,39 @@
+# AppProject for application teams: the guard rails.
+#
+# Compared with "platform", this project is deliberately restrictive:
+#   - only two source repos are allowed,
+#   - apps may only deploy into namespaces named hello-* or podinfo-*,
+#   - the only cluster-scoped kind allowed is Namespace (for CreateNamespace=true),
+#   - ResourceQuota / LimitRange are blocked (those belong to the platform team).
+# Try it: point an app of this project at the kube-system namespace and
+# Argo CD will refuse to sync it.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: apps
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Business applications. Limited to hello-* and podinfo-* namespaces.
+  sourceRepos:
+    - https://github.com/CarlosRiggio/ArgoCD-POC.git
+    - https://stefanprodan.github.io/podinfo
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: hello-*
+    - server: https://kubernetes.default.svc
+      namespace: podinfo-*
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceBlacklist:
+    - group: ""
+      kind: ResourceQuota
+    - group: ""
+      kind: LimitRange
+  # Show pruned/orphaned resources (created by hand, not in Git) as warnings in the UI.
+  orphanedResources:
+    warn: true

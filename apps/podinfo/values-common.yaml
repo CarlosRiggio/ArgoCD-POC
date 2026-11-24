@@ -1,0 +1,11 @@
+# Values shared by every podinfo environment.
+# Layered by Argo CD as: chart defaults -> values-common.yaml -> values-<env>.yaml
+service:
+  type: NodePort   # nodePort itself is set per environment
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 64Mi

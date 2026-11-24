@@ -1,0 +1,36 @@
+# The ROOT application ("app of apps").
+#
+# This is the ONLY manifest ever applied by hand (`make bootstrap`).
+# It points Argo CD at the argocd/ folder of this repo; everything in there
+# (AppProjects, Argo CD itself, ApplicationSets) is then created by Argo CD,
+# and those in turn create every other application.
+#
+#   root ──► argocd/projects/*        (AppProjects)        sync-wave -2
+#        ├─► argocd/apps/argocd.yaml  (Argo CD self-mgmt)  sync-wave -1
+#        └─► argocd/apps/*-appset.yaml (ApplicationSets)   sync-wave  0
+#
+# It lives in the built-in "default" project because the custom projects it
+# creates don't exist yet when it is applied (chicken-and-egg).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  # Deleting the root app cascades and deletes its children (and their resources).
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/CarlosRiggio/ArgoCD-POC.git
+    targetRevision: main
+    path: argocd
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true     # delete child apps whose manifest was removed from Git
+      selfHeal: true  # revert manual changes to child apps

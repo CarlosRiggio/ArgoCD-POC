@@ -1,0 +1,26 @@
+# hello - DEV overlay. Open http://localhost:8081
+# Only what differs from the base lives here: replicas, UI color/message, nodePort.
+# The target namespace (hello-dev) is set by the ApplicationSet, not here.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+replicas:
+  - name: hello
+    count: 1
+
+configMapGenerator:
+  - name: hello-config
+    behavior: merge
+    literals:
+      - PODINFO_UI_COLOR=#3182ce  # blue
+      - PODINFO_UI_MESSAGE=hello dev - v1
+
+patches:
+  - target: { kind: Service, name: hello }
+    patch: |
+      - op: add
+        path: /spec/ports/0/nodePort
+        value: 30081

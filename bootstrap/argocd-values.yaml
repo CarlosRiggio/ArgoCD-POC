@@ -1,0 +1,48 @@
+# Helm values for the Argo CD chart (argo/argo-cd).
+#
+# This single file is used TWICE, which keeps one source of truth:
+#   1. `make argocd` -> the very first `helm install` (bootstrap).
+#   2. argocd/apps/argocd.yaml -> Argo CD then manages ITSELF from this file.
+# To change Argo CD's configuration, edit this file and push. That's GitOps.
+#
+# Reference: https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd
+
+global:
+  domain: localhost:8080
+
+configs:
+  params:
+    # TLS is terminated nowhere in this local POC. Serve plain HTTP.
+    # (In production you would terminate TLS at an ingress/gateway.)
+    server.insecure: true
+
+  cm:
+    # Poll Git every ~60s instead of the 120s default so demos feel snappy.
+    # (In production you would use a Git webhook instead of polling.)
+    timeout.reconciliation: 60s
+    timeout.reconciliation.jitter: 10s
+
+    # A local, read-only user to demonstrate RBAC (password set by `make viewer`).
+    accounts.viewer: login
+
+    # Show the resource tracking method explicitly (annotation is the 3.x default).
+    application.resourceTrackingMethod: annotation
+
+  rbac:
+    # Anyone who logs in but has no explicit role gets nothing.
+    policy.default: ""
+    # `g` binds a user/group to a role. role:readonly is built in.
+    policy.csv: |
+      g, viewer, role:readonly
+
+# Expose the UI/API as a NodePort that kind maps to localhost:8080.
+server:
+  service:
+    type: NodePort
+    nodePortHttp: 30080
+
+# Not needed locally: SSO (Dex) and notifications. Disabling them saves memory.
+dex:
+  enabled: false
+notifications:
+  enabled: false

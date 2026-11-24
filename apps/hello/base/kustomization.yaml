@@ -1,0 +1,33 @@
+# hello - Kustomize BASE shared by every environment.
+#
+# Sync order inside one sync operation (see docs/concepts.md):
+#   PreSync hook  : db-migration Job          (runs first, must succeed)
+#   wave 0        : ConfigMap (generated)
+#   wave 1        : Deployment, Service
+#   PostSync hook : smoke-test Job            (runs after everything is Healthy)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Common metadata labels (NOT added to selectors, so hook Job pods are never
+# matched by the Service selector).
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: hello
+
+resources:
+  - deployment.yaml
+  - service.yaml
+  - presync-db-migration.yaml
+  - postsync-smoke-test.yaml
+
+# configMapGenerator appends a content hash to the name (hello-config-abc123).
+# Changing a value => new name => the Deployment spec changes => rolling update.
+# Argo CD then prunes the old ConfigMap. No manual pod restarts needed.
+configMapGenerator:
+  - name: hello-config
+    literals:
+      - PODINFO_UI_COLOR=#718096
+      - PODINFO_UI_MESSAGE=hello from base
+    options:
+      annotations:
+        argocd.argoproj.io/sync-wave: "0"
