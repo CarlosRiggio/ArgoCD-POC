@@ -11,12 +11,15 @@ if [[ $# -gt 0 ]]; then APPS=("$@"); else APPS=(hello-prod podinfo-prod); fi
 
 for app in "${APPS[@]}"; do
   info "Requesting sync of $app"
-  kubectl -n "$NS" patch application "$app" --type merge -p '{
-    "operation": {
-      "initiatedBy": { "username": "make sync-prod" },
-      "sync": { "prune": true, "syncStrategy": { "hook": {} } }
+  # An operation does NOT inherit spec.syncPolicy.syncOptions (e.g.
+  # CreateNamespace=true): the UI/CLI copy them in, so we do the same.
+  opts=$(kubectl -n "$NS" get application "$app" -o json | jq -c '.spec.syncPolicy.syncOptions // []')
+  kubectl -n "$NS" patch application "$app" --type merge -p "{
+    \"operation\": {
+      \"initiatedBy\": { \"username\": \"make sync-prod\" },
+      \"sync\": { \"prune\": true, \"syncOptions\": $opts, \"syncStrategy\": { \"hook\": {} } }
     }
-  }' >/dev/null
+  }" >/dev/null
 done
 
 for app in "${APPS[@]}"; do

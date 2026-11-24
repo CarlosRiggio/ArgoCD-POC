@@ -18,7 +18,7 @@ metadata:
   namespace: argocd
   # Deleting the root app cascades and deletes its children (and their resources).
   finalizers:
-    - resources-finalizer.argocd.argoproj.io
+    - resources-finalizer.argocd.argoproj.io/foreground  # cascade-delete the app's resources
 spec:
   project: default
   source:
